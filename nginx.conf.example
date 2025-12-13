@@ -1,0 +1,95 @@
+# NGINX Reverse Proxy Configuration for BikeStat
+# Copy to nginx.conf and customize for your domain
+
+upstream bikestat_backend {
+    server bikestat:8000;
+}
+
+server {
+    listen 80;
+    server_name your-domain.com www.your-domain.com;
+
+    # Redirect HTTP to HTTPS (uncomment after SSL setup)
+    # return 301 https://$server_name$request_uri;
+
+    # Or serve directly over HTTP
+    location / {
+        proxy_pass http://bikestat_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket support (if needed in future)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Max upload size
+    client_max_body_size 10M;
+
+    # Logs
+    access_log /var/log/nginx/bikestat_access.log;
+    error_log /var/log/nginx/bikestat_error.log;
+}
+
+# HTTPS Configuration (uncomment after SSL certificate setup)
+# server {
+#     listen 443 ssl http2;
+#     server_name your-domain.com www.your-domain.com;
+#
+#     # SSL Certificates (use Let's Encrypt with certbot)
+#     ssl_certificate /etc/nginx/ssl/fullchain.pem;
+#     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+#
+#     # SSL Configuration
+#     ssl_protocols TLSv1.2 TLSv1.3;
+#     ssl_ciphers HIGH:!aNULL:!MD5;
+#     ssl_prefer_server_ciphers on;
+#     ssl_session_cache shared:SSL:10m;
+#     ssl_session_timeout 10m;
+#
+#     location / {
+#         proxy_pass http://bikestat_backend;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#
+#         proxy_http_version 1.1;
+#         proxy_set_header Upgrade $http_upgrade;
+#         proxy_set_header Connection "upgrade";
+#
+#         proxy_connect_timeout 60s;
+#         proxy_send_timeout 60s;
+#         proxy_read_timeout 60s;
+#     }
+#
+#     # Security headers
+#     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+#     add_header X-Frame-Options "SAMEORIGIN" always;
+#     add_header X-Content-Type-Options "nosniff" always;
+#     add_header X-XSS-Protection "1; mode=block" always;
+#
+#     client_max_body_size 10M;
+#
+#     access_log /var/log/nginx/bikestat_ssl_access.log;
+#     error_log /var/log/nginx/bikestat_ssl_error.log;
+# }
+
+# Instructions for SSL with Let's Encrypt:
+# 1. Install certbot: sudo apt-get install certbot python3-certbot-nginx
+# 2. Get certificate: sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+# 3. Certbot will automatically update nginx config
+# 4. Test renewal: sudo certbot renew --dry-run
