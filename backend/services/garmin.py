@@ -74,8 +74,9 @@ class GarminService:
 
         try:
             # Get activities from Garmin
+            # Format dates as YYYY-MM-DD (required by Garmin API)
             activities = self.client.get_activities_by_date(
-                start_date.isoformat(), end_date.isoformat()
+                start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
             )
 
             # Filter for cycling activities
