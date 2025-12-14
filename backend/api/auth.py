@@ -38,6 +38,10 @@ async def login(
         # Attempt login
         await garmin_service.login(email, password)
 
+        # Get user profile
+        profile = await garmin_service.get_user_profile()
+        first_name = profile.get("first_name", "User")
+
         # Get default date range (last 7 days)
         start_date, end_date = GarminService.get_default_date_range()
 
@@ -47,6 +51,7 @@ async def login(
             {
                 "garmin_service": garmin_service,
                 "email": email,
+                "first_name": first_name,
                 "start_date": start_date,
                 "end_date": end_date,
                 "activities": [],
@@ -116,5 +121,6 @@ async def status(request: Request):
     return {
         "authenticated": True,
         "email": session.get("email"),
+        "first_name": session.get("first_name", "User"),
         "active_sessions": session_manager.get_active_session_count(),
     }

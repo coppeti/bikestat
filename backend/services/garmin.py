@@ -52,6 +52,27 @@ class GarminService:
             logger.error(f"Unexpected error during Garmin login: {e}")
             raise ValueError(f"Login failed: {e}")
 
+    async def get_user_profile(self) -> dict:
+        """
+        Get user profile information from Garmin Connect.
+
+        Returns:
+            User profile data
+
+        Raises:
+            ValueError: If not logged in or API error
+        """
+        if not self.client:
+            raise ValueError("Not logged in to Garmin Connect")
+
+        try:
+            profile = self.client.get_full_name()
+            return {"first_name": profile, "full_name": profile}
+        except Exception as e:
+            logger.warning(f"Could not retrieve user profile: {e}")
+            # Return default if profile retrieval fails
+            return {"first_name": "User", "full_name": "User"}
+
     async def get_activities(
         self, start_date: datetime, end_date: datetime, activity_types: Optional[list[str]] = None
     ) -> list[dict]:

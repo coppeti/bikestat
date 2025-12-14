@@ -12,7 +12,7 @@
                     <img src="/static/biker.png" alt="BikeStat" class="w-8 h-8">
                     <div>
                         <h1 class="text-2xl font-bold text-gray-900">BikeStat Dashboard</h1>
-                        <p class="text-sm text-gray-600 mt-1">Welcome, {{ email }}</p>
+                        <p class="text-sm text-gray-600 mt-1">Welcome, {{ first_name }}</p>
                     </div>
                 </div>
                 <form action="/auth/logout" method="post">
@@ -88,6 +88,42 @@
                 </div>
             </div>
 
+            <!-- Data Types (Columns) -->
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Data Types</label>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="column in availableColumns" :key="column.key">
+                        <label class="inline-flex items-center">
+                            <input
+                                type="checkbox"
+                                :value="column.key"
+                                x-model="selectedColumns"
+                                class="rounded border-gray-300 text-bikestat-500 focus:ring-bikestat-400"
+                            >
+                            <span class="ml-2 text-sm text-gray-700" x-text="column.label"></span>
+                        </label>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Summary Metrics -->
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Summary Metrics</label>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="metric in availableSummaryMetrics" :key="metric.key">
+                        <label class="inline-flex items-center">
+                            <input
+                                type="checkbox"
+                                :value="metric.key"
+                                x-model="selectedSummaryMetrics"
+                                class="rounded border-gray-300 text-bikestat-500 focus:ring-bikestat-400"
+                            >
+                            <span class="ml-2 text-sm text-gray-700" x-text="metric.label"></span>
+                        </label>
+                    </template>
+                </div>
+            </div>
+
             <!-- Export Buttons -->
             <div class="mt-6 pt-4 border-t flex gap-3">
                 <button
@@ -108,29 +144,22 @@
         </div>
 
         <!-- Summary Statistics -->
-        <div x-show="summary" class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div x-show="activities.length > 0" class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">Summary Statistics</h2>
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <!-- Total Activities (always shown) -->
                 <div class="bg-bikestat-50 p-4 rounded-lg">
                     <p class="text-sm text-gray-600">Total Activities</p>
-                    <p class="text-2xl font-bold text-bikestat-900" x-text="summary?.total_activities || 0"></p>
+                    <p class="text-2xl font-bold text-bikestat-900" x-text="filteredSummary.total_activities"></p>
                 </div>
-                <div class="bg-green-50 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600">Total Distance</p>
-                    <p class="text-2xl font-bold text-green-900" x-text="formatDistance(summary?.total_distance)"></p>
-                </div>
-                <div class="bg-purple-50 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600">Total Duration</p>
-                    <p class="text-2xl font-bold text-purple-900" x-text="formatDuration(summary?.total_duration)"></p>
-                </div>
-                <div class="bg-orange-50 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600">Avg Speed</p>
-                    <p class="text-2xl font-bold text-orange-900" x-text="formatSpeed(summary?.avg_speed)"></p>
-                </div>
-                <div class="bg-red-50 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600">Total Calories</p>
-                    <p class="text-2xl font-bold text-red-900" x-text="summary?.total_calories || 0"></p>
-                </div>
+
+                <!-- Dynamic metrics based on selection -->
+                <template x-for="metric in availableSummaryMetrics.filter(m => selectedSummaryMetrics.includes(m.key))" :key="metric.key">
+                    <div :class="metric.bgClass + ' p-4 rounded-lg'">
+                        <p class="text-sm text-gray-600" x-text="metric.label"></p>
+                        <p :class="metric.textClass + ' text-2xl font-bold'" x-text="metric.format(filteredSummary[metric.key])"></p>
+                    </div>
+                </template>
             </div>
         </div>
 
@@ -158,31 +187,43 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distance</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Speed</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Power</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg HR</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Elevation</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calories</th>
+                                <th x-show="selectedColumns.includes('start_time')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th x-show="selectedColumns.includes('activity_name')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th x-show="selectedColumns.includes('activity_type')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th x-show="selectedColumns.includes('duration')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                                <th x-show="selectedColumns.includes('distance')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distance</th>
+                                <th x-show="selectedColumns.includes('avg_speed')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Speed</th>
+                                <th x-show="selectedColumns.includes('max_speed')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Speed</th>
+                                <th x-show="selectedColumns.includes('avg_power')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Power</th>
+                                <th x-show="selectedColumns.includes('max_power')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Power</th>
+                                <th x-show="selectedColumns.includes('avg_hr')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg HR</th>
+                                <th x-show="selectedColumns.includes('max_hr')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max HR</th>
+                                <th x-show="selectedColumns.includes('total_ascent')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Elevation</th>
+                                <th x-show="selectedColumns.includes('max_elevation')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Elev</th>
+                                <th x-show="selectedColumns.includes('avg_cadence')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Cadence</th>
+                                <th x-show="selectedColumns.includes('max_cadence')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Cadence</th>
+                                <th x-show="selectedColumns.includes('calories')" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calories</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <template x-for="activity in filteredActivities" :key="activity.activity_id">
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatDate(activity.start_time)"></td>
-                                    <td class="px-4 py-3 text-sm text-gray-900" x-text="activity.activity_name"></td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600" x-text="formatActivityType(activity.activity_type)"></td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatDuration(activity.duration)"></td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatDistance(activity.distance)"></td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatSpeed(activity.avg_speed)"></td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatPower(activity.avg_power)"></td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatHR(activity.avg_hr)"></td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatElevation(activity.total_ascent)"></td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="activity.calories || '-'"></td>
+                                    <td x-show="selectedColumns.includes('start_time')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatDate(activity.start_time)"></td>
+                                    <td x-show="selectedColumns.includes('activity_name')" class="px-4 py-3 text-sm text-gray-900" x-text="activity.activity_name"></td>
+                                    <td x-show="selectedColumns.includes('activity_type')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-600" x-text="formatActivityType(activity.activity_type)"></td>
+                                    <td x-show="selectedColumns.includes('duration')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatDuration(activity.duration)"></td>
+                                    <td x-show="selectedColumns.includes('distance')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatDistance(activity.distance)"></td>
+                                    <td x-show="selectedColumns.includes('avg_speed')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatSpeed(activity.avg_speed)"></td>
+                                    <td x-show="selectedColumns.includes('max_speed')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatSpeed(activity.max_speed)"></td>
+                                    <td x-show="selectedColumns.includes('avg_power')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatPower(activity.avg_power)"></td>
+                                    <td x-show="selectedColumns.includes('max_power')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatPower(activity.max_power)"></td>
+                                    <td x-show="selectedColumns.includes('avg_hr')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatHR(activity.avg_hr)"></td>
+                                    <td x-show="selectedColumns.includes('max_hr')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatHR(activity.max_hr)"></td>
+                                    <td x-show="selectedColumns.includes('total_ascent')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatElevation(activity.total_ascent)"></td>
+                                    <td x-show="selectedColumns.includes('max_elevation')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatElevation(activity.max_elevation)"></td>
+                                    <td x-show="selectedColumns.includes('avg_cadence')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatCadence(activity.avg_cadence)"></td>
+                                    <td x-show="selectedColumns.includes('max_cadence')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="formatCadence(activity.max_cadence)"></td>
+                                    <td x-show="selectedColumns.includes('calories')" class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" x-text="activity.calories || '-'"></td>
                                 </tr>
                             </template>
                         </tbody>
@@ -202,6 +243,36 @@
             summary: null,
             activityTypes: ['cycling', 'mountain_biking', 'gravel_cycling', 'cyclocross', 'mountain_biking_enduro'],
             selectedTypes: ['cycling', 'mountain_biking', 'gravel_cycling', 'cyclocross', 'mountain_biking_enduro'],
+            availableColumns: [
+                { key: 'start_time', label: 'Date' },
+                { key: 'activity_name', label: 'Name' },
+                { key: 'activity_type', label: 'Type' },
+                { key: 'duration', label: 'Duration' },
+                { key: 'distance', label: 'Distance' },
+                { key: 'avg_speed', label: 'Avg Speed' },
+                { key: 'max_speed', label: 'Max Speed' },
+                { key: 'avg_power', label: 'Avg Power' },
+                { key: 'max_power', label: 'Max Power' },
+                { key: 'avg_hr', label: 'Avg HR' },
+                { key: 'max_hr', label: 'Max HR' },
+                { key: 'total_ascent', label: 'Elevation' },
+                { key: 'max_elevation', label: 'Max Elevation' },
+                { key: 'avg_cadence', label: 'Avg Cadence' },
+                { key: 'max_cadence', label: 'Max Cadence' },
+                { key: 'calories', label: 'Calories' }
+            ],
+            selectedColumns: ['start_time', 'activity_name', 'activity_type', 'duration', 'distance', 'avg_speed', 'avg_power', 'avg_hr', 'total_ascent', 'calories'],
+            availableSummaryMetrics: [
+                { key: 'total_distance', label: 'Total Distance', bgClass: 'bg-green-50', textClass: 'text-green-900', format: (val) => val ? `${(val / 1000).toFixed(2)} km` : '-' },
+                { key: 'total_duration', label: 'Total Duration', bgClass: 'bg-purple-50', textClass: 'text-purple-900', format: (val) => val ? `${Math.floor(val / 3600)}h ${Math.floor((val % 3600) / 60)}m` : '-' },
+                { key: 'avg_speed', label: 'Avg Speed', bgClass: 'bg-orange-50', textClass: 'text-orange-900', format: (val) => val ? `${(val * 3.6).toFixed(1)} km/h` : '-' },
+                { key: 'avg_power', label: 'Avg Power', bgClass: 'bg-yellow-50', textClass: 'text-yellow-900', format: (val) => val ? `${Math.round(val)} W` : '-' },
+                { key: 'avg_hr', label: 'Avg HR', bgClass: 'bg-red-50', textClass: 'text-red-900', format: (val) => val ? `${Math.round(val)} bpm` : '-' },
+                { key: 'total_elevation', label: 'Total Elevation', bgClass: 'bg-blue-50', textClass: 'text-blue-900', format: (val) => val ? `${Math.round(val)} m` : '-' },
+                { key: 'avg_cadence', label: 'Avg Cadence', bgClass: 'bg-indigo-50', textClass: 'text-indigo-900', format: (val) => val ? `${Math.round(val)} rpm` : '-' },
+                { key: 'total_calories', label: 'Total Calories', bgClass: 'bg-pink-50', textClass: 'text-pink-900', format: (val) => val ? Math.round(val) : '-' }
+            ],
+            selectedSummaryMetrics: ['total_distance', 'total_duration', 'total_elevation', 'avg_speed', 'total_calories'],
             startDate: '{{ start_date.strftime("%Y-%m-%d") if start_date else "" }}',
             endDate: '{{ end_date.strftime("%Y-%m-%d") if end_date else "" }}',
 
@@ -209,6 +280,47 @@
                 return this.activities.filter(activity =>
                     this.selectedTypes.includes(activity.activity_type)
                 );
+            },
+
+            get filteredSummary() {
+                const filtered = this.filteredActivities;
+                if (filtered.length === 0) {
+                    return {
+                        total_activities: 0,
+                        total_duration: 0,
+                        total_distance: 0,
+                        avg_speed: 0,
+                        max_speed: 0,
+                        avg_power: 0,
+                        avg_hr: 0,
+                        total_elevation: 0,
+                        avg_cadence: 0,
+                        total_calories: 0
+                    };
+                }
+
+                const sum = (arr, key) => arr.reduce((acc, a) => acc + (a[key] || 0), 0);
+                const avg = (arr, key) => {
+                    const values = arr.filter(a => a[key] != null).map(a => a[key]);
+                    return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+                };
+                const max = (arr, key) => {
+                    const values = arr.filter(a => a[key] != null).map(a => a[key]);
+                    return values.length > 0 ? Math.max(...values) : 0;
+                };
+
+                return {
+                    total_activities: filtered.length,
+                    total_duration: sum(filtered, 'duration'),
+                    total_distance: sum(filtered, 'distance'),
+                    avg_speed: avg(filtered, 'avg_speed'),
+                    max_speed: max(filtered, 'max_speed'),
+                    avg_power: avg(filtered, 'avg_power'),
+                    avg_hr: avg(filtered, 'avg_hr'),
+                    total_elevation: sum(filtered, 'total_ascent'),
+                    avg_cadence: avg(filtered, 'avg_cadence'),
+                    total_calories: sum(filtered, 'calories')
+                };
             },
 
             async fetchActivities() {
@@ -237,11 +349,40 @@
                     const types = new Set(this.activities.map(a => a.activity_type));
                     this.activityTypes = Array.from(types);
 
+                    // Auto-select all activity types present in the fetched data
+                    this.selectedTypes = this.activityTypes;
+
+                    // Auto-deselect columns with no data
+                    this.updateSelectedColumns();
+
                 } catch (err) {
                     this.error = err.message;
                 } finally {
                     this.loading = false;
                 }
+            },
+
+            updateSelectedColumns() {
+                if (this.activities.length === 0) return;
+
+                // Check which columns have at least one non-null value
+                const columnsWithData = this.availableColumns
+                    .filter(col => {
+                        // Always keep basic columns
+                        if (['start_time', 'activity_name', 'activity_type'].includes(col.key)) {
+                            return true;
+                        }
+                        // Check if any activity has data for this column
+                        return this.activities.some(activity =>
+                            activity[col.key] != null && activity[col.key] !== 0
+                        );
+                    })
+                    .map(col => col.key);
+
+                // Update selectedColumns to only include columns with data
+                this.selectedColumns = this.selectedColumns.filter(col =>
+                    columnsWithData.includes(col)
+                );
             },
 
             async exportCSV() {
@@ -256,13 +397,12 @@
 
             formatDate(dateStr) {
                 const date = new Date(dateStr);
-                return date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${day}/${month}/${year}, ${hours}:${minutes}`;
             },
 
             formatDuration(seconds) {
@@ -292,6 +432,10 @@
 
             formatElevation(meters) {
                 return meters ? `${Math.round(meters)} m` : '-';
+            },
+
+            formatCadence(rpm) {
+                return rpm ? `${Math.round(rpm)} rpm` : '-';
             },
 
             formatActivityType(type) {

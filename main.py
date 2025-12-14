@@ -95,6 +95,7 @@ async def dashboard(request: Request):
         {
             "request": request,
             "email": session.get("email"),
+            "first_name": session.get("first_name", "User"),
             "start_date": session.get("start_date"),
             "end_date": session.get("end_date"),
         },
