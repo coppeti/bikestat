@@ -194,21 +194,45 @@ class DataProcessor:
         data = [activity.model_dump() for activity in activities]
         df = pd.DataFrame(data)
 
-        # Format datetime
-        df["start_time"] = pd.to_datetime(df["start_time"])
+        # Format datetime (DD/MM/YYYY HH:MM without seconds)
+        df["start_time"] = pd.to_datetime(df["start_time"]).dt.strftime("%d/%m/%Y %H:%M")
 
-        # Convert duration to readable format (HH:MM:SS)
+        # Convert duration to readable format (HH:MM without seconds)
         df["duration_formatted"] = df["duration"].apply(
-            lambda x: f"{int(x // 3600):02d}:{int((x % 3600) // 60):02d}:{int(x % 60):02d}"
+            lambda x: f"{int(x // 3600):02d}:{int((x % 3600) // 60):02d}"
         )
 
-        # Convert distance to km
-        df["distance_km"] = df["distance"] / 1000
+        # Convert distance to km (rounded to 2 decimals)
+        df["distance_km"] = (df["distance"] / 1000).round(2)
 
-        # Convert speeds to km/h if in m/s
+        # Convert speeds to km/h if in m/s (rounded to 1 decimal)
         if "avg_speed" in df.columns:
-            df["avg_speed_kmh"] = df["avg_speed"] * 3.6
+            df["avg_speed_kmh"] = (df["avg_speed"] * 3.6).round(1)
         if "max_speed" in df.columns:
-            df["max_speed_kmh"] = df["max_speed"] * 3.6
+            df["max_speed_kmh"] = (df["max_speed"] * 3.6).round(1)
+
+        # Round elevation metrics to nearest meter (no decimals, convert to int)
+        if "total_ascent" in df.columns:
+            df["total_ascent"] = pd.to_numeric(df["total_ascent"], errors='coerce').round(0).astype('Int64')
+        if "max_elevation" in df.columns:
+            df["max_elevation"] = pd.to_numeric(df["max_elevation"], errors='coerce').round(0).astype('Int64')
+
+        # Round heart rate and cadence metrics to integers (no decimals)
+        if "avg_hr" in df.columns:
+            df["avg_hr"] = pd.to_numeric(df["avg_hr"], errors='coerce').round(0).astype('Int64')
+        if "max_hr" in df.columns:
+            df["max_hr"] = pd.to_numeric(df["max_hr"], errors='coerce').round(0).astype('Int64')
+        if "avg_cadence" in df.columns:
+            df["avg_cadence"] = pd.to_numeric(df["avg_cadence"], errors='coerce').round(0).astype('Int64')
+        if "max_cadence" in df.columns:
+            df["max_cadence"] = pd.to_numeric(df["max_cadence"], errors='coerce').round(0).astype('Int64')
+
+        # Round power and calories to integers (no decimals)
+        if "avg_power" in df.columns:
+            df["avg_power"] = pd.to_numeric(df["avg_power"], errors='coerce').round(0).astype('Int64')
+        if "max_power" in df.columns:
+            df["max_power"] = pd.to_numeric(df["max_power"], errors='coerce').round(0).astype('Int64')
+        if "calories" in df.columns:
+            df["calories"] = pd.to_numeric(df["calories"], errors='coerce').round(0).astype('Int64')
 
         return df

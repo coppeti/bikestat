@@ -387,7 +387,8 @@
 
             async exportCSV() {
                 const types = this.selectedTypes.join(',');
-                window.location.href = `/export/csv?activity_types=${encodeURIComponent(types)}`;
+                const columns = this.selectedColumns.join(',');
+                window.location.href = `/export/csv?activity_types=${encodeURIComponent(types)}&columns=${encodeURIComponent(columns)}`;
             },
 
             async exportPDF() {
