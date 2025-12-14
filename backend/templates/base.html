@@ -5,8 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}BikeStat - Garmin Cycling Analytics{% endblock %}</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+
+    <!-- Google Fonts - Lexend Deca -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Lexend Deca', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    colors: {
+                        'bikestat': {
+                            50: '#f2f9f1',
+                            100: '#e0f2de',
+                            200: '#c3e5bf',
+                            300: '#9dd298',
+                            400: '#78ba73',
+                            500: '#5a9f55',
+                            600: '#458041',
+                            700: '#376535',
+                            800: '#2f512d',
+                            900: '#284327',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
@@ -16,6 +49,7 @@
 
     <style>
         [x-cloak] { display: none !important; }
+        body { font-family: 'Lexend Deca', sans-serif; }
     </style>
 
     {% block extra_head %}{% endblock %}
