@@ -2,6 +2,7 @@
 
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -90,14 +91,18 @@ async def dashboard(request: Request):
         response.delete_cookie("session_id")
         return response
 
+    # Always compute fresh dates for display (last 7 days from today)
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=7)
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
             "email": session.get("email"),
             "first_name": session.get("first_name", "User"),
-            "start_date": session.get("start_date"),
-            "end_date": session.get("end_date"),
+            "start_date": start_date,
+            "end_date": end_date,
         },
     )
 

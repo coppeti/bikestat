@@ -16,9 +16,8 @@
 
         <!-- Login Form -->
         <form
-            hx-post="/auth/login"
-            hx-target="#error-message"
-            hx-swap="innerHTML"
+            action="/auth/login"
+            method="post"
             class="mt-8 space-y-6"
         >
             <div id="error-message" class="rounded-md"></div>
@@ -60,13 +59,7 @@
                     type="submit"
                     class="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-bikestat-500 hover:bg-bikestat-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-bikestat-400 transition duration-150 ease-in-out"
                 >
-                    <span class="htmx-indicator">
-                        <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </span>
-                    <span class="htmx-indicator-hide">Sign in to Garmin Connect</span>
+                    Sign in to Garmin Connect
                 </button>
             </div>
 
@@ -91,22 +84,4 @@
     </div>
 </div>
 
-<script>
-    // Handle HTMX errors
-    document.body.addEventListener('htmx:responseError', function(evt) {
-        const errorDiv = document.getElementById('error-message');
-        errorDiv.innerHTML = `
-            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-                <p class="font-medium">Login Failed</p>
-                <p class="text-sm mt-1">Please check your credentials and try again.</p>
-            </div>
-        `;
-    });
-
-    // Show loading indicator
-    document.body.addEventListener('htmx:beforeRequest', function() {
-        document.querySelectorAll('.htmx-indicator').forEach(el => el.classList.remove('hidden'));
-        document.querySelectorAll('.htmx-indicator-hide').forEach(el => el.classList.add('hidden'));
-    });
-</script>
 {% endblock %}

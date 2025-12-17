@@ -6,7 +6,7 @@
 <div class="min-h-screen bg-gray-50" x-data="dashboardData()">
     <!-- Header -->
     <header class="bg-white shadow-sm border-b">
-        <div class="px-4 sm:px-6 lg:px-8 py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-3">
                     <img src="/static/biker.png" alt="BikeStat" class="w-8 h-8">
@@ -28,7 +28,7 @@
     </header>
 
     <!-- Main Content -->
-    <main class="px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Controls Panel -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">Filters & Controls</h2>
@@ -56,16 +56,15 @@
                 <div class="flex items-end">
                     <button
                         @click="fetchActivities()"
-                        class="w-full px-4 py-2 bg-bikestat-500 hover:bg-bikestat-600 text-white font-medium rounded-lg transition"
+                        :disabled="loading"
+                        class="w-full px-4 py-2 bg-bikestat-500 hover:bg-bikestat-600 disabled:bg-bikestat-400 text-white font-medium rounded-lg transition flex items-center justify-center gap-2"
                     >
-                        <span x-show="!loading">Fetch Activities</span>
-                        <span x-show="loading" class="flex items-center justify-center">
-                            <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Loading...
-                        </span>
+                        <svg x-cloak x-show="loading" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span x-cloak x-show="loading">Loading...</span>
+                        <span :class="{ 'hidden': loading }">Fetch Activities</span>
                     </button>
                 </div>
             </div>
@@ -393,7 +392,8 @@
 
             async exportPDF() {
                 const types = this.selectedTypes.join(',');
-                window.location.href = `/export/pdf?activity_types=${encodeURIComponent(types)}`;
+                const columns = this.selectedColumns.join(',');
+                window.location.href = `/export/pdf?activity_types=${encodeURIComponent(types)}&columns=${encodeURIComponent(columns)}`;
             },
 
             formatDate(dateStr) {

@@ -4,6 +4,7 @@ import logging
 import io
 from datetime import datetime
 from typing import Optional
+import pandas as pd
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from reportlab.lib import colors
@@ -169,7 +170,6 @@ async def export_csv(
             totals[label] = ""
 
     # Append totals row with columns in same order as df_export
-    import pandas as pd
     totals_df = pd.DataFrame([totals], columns=df_export.columns)
     df_export = pd.concat([df_export, totals_df], ignore_index=True)
 
@@ -195,12 +195,14 @@ async def export_csv(
 async def export_pdf(
     request: Request,
     activity_types: Optional[str] = Query(None, description="Comma-separated activity types"),
+    columns: Optional[str] = Query(None, description="Comma-separated column keys to export"),
 ):
     """
     Export activities to PDF.
 
     Args:
         activity_types: Comma-separated list of activity types to filter
+        columns: Comma-separated list of column keys to export
 
     Returns:
         PDF file
@@ -225,6 +227,60 @@ async def export_pdf(
     # Calculate summary
     summary = DataProcessor.calculate_summary(filtered)
 
+    # Convert to DataFrame with proper formatting
+    df = DataProcessor.activities_to_dataframe(filtered)
+
+    # Map frontend column keys to DataFrame column names
+    # Order matches frontend availableColumns array
+    column_mapping = {
+        "start_time": ("start_time", "Date"),
+        "activity_name": ("activity_name", "Activity"),
+        "activity_type": ("activity_type", "Type"),
+        "duration": ("duration_formatted", "Duration"),
+        "distance": ("distance_km", "Distance\n(km)"),
+        "avg_speed": ("avg_speed_kmh", "Avg Speed\n(km/h)"),
+        "max_speed": ("max_speed_kmh", "Max Speed\n(km/h)"),
+        "avg_power": ("avg_power", "Avg Power\n(W)"),
+        "max_power": ("max_power", "Max Power\n(W)"),
+        "avg_hr": ("avg_hr", "Avg HR\n(bpm)"),
+        "max_hr": ("max_hr", "Max HR\n(bpm)"),
+        "total_ascent": ("total_ascent", "Elevation\n(m)"),
+        "max_elevation": ("max_elevation", "Max Elev\n(m)"),
+        "avg_cadence": ("avg_cadence", "Avg Cadence\n(rpm)"),
+        "max_cadence": ("max_cadence", "Max Cadence\n(rpm)"),
+        "calories": ("calories", "Calories"),
+    }
+
+    # Parse selected columns
+    selected_keys = None
+    if columns:
+        selected_keys = [c.strip() for c in columns.split(",")]
+
+    # Build export columns list maintaining order from column_mapping
+    export_columns_list = []
+
+    # If columns are selected, reorder them to match column_mapping order
+    if selected_keys:
+        selected_set = set(selected_keys)
+        ordered_keys = [key for key in column_mapping.keys() if key in selected_set]
+    else:
+        ordered_keys = list(column_mapping.keys())
+
+    for key in ordered_keys:
+        if key not in column_mapping:
+            continue
+        df_col, label = column_mapping[key]
+        # Skip if column doesn't exist in DataFrame
+        if df_col not in df.columns:
+            continue
+        # Skip if column has no data (all null or 0)
+        if df[df_col].notna().sum() == 0 or (df[df_col].fillna(0) == 0).all():
+            continue
+        export_columns_list.append((df_col, label))
+
+    if not export_columns_list:
+        raise HTTPException(status_code=404, detail="No data to export with selected columns")
+
     # Create PDF in memory
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=landscape(A4))
@@ -243,7 +299,7 @@ async def export_pdf(
     # Date range
     start_date = session.get("start_date")
     end_date = session.get("end_date")
-    date_text = f"Period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
+    date_text = f"Period: {start_date.strftime('%d/%m/%Y')} to {end_date.strftime('%d/%m/%Y')}"
     elements.append(Paragraph(date_text, normal_style))
     elements.append(Spacer(1, 0.2 * inch))
 
@@ -252,36 +308,30 @@ async def export_pdf(
     <b>Summary Statistics</b><br/>
     Total Activities: {summary.total_activities}<br/>
     Total Distance: {summary.total_distance / 1000:.2f} km<br/>
-    Total Duration: {int(summary.total_duration // 3600):02d}:{int((summary.total_duration % 3600) // 60):02d}:{int(summary.total_duration % 60):02d}<br/>
-    Average Speed: {summary.avg_speed * 3.6 if summary.avg_speed else 0:.2f} km/h<br/>
+    Total Duration: {int(summary.total_duration // 3600):02d}:{int((summary.total_duration % 3600) // 60):02d}<br/>
+    Average Speed: {summary.avg_speed * 3.6 if summary.avg_speed else 0:.1f} km/h<br/>
     Total Calories: {summary.total_calories or 0}
     """
     elements.append(Paragraph(summary_text, normal_style))
     elements.append(Spacer(1, 0.3 * inch))
 
-    # Activities table
-    table_data = [
-        [
-            "Date",
-            "Activity",
-            "Type",
-            "Duration",
-            "Distance\n(km)",
-            "Avg Speed\n(km/h)",
-            "Calories",
-        ]
-    ]
+    # Activities table - build header row from selected columns
+    header_row = [label for _, label in export_columns_list]
+    table_data = [header_row]
 
-    for activity in filtered:
-        row = [
-            activity.start_time.strftime("%Y-%m-%d %H:%M"),
-            activity.activity_name[:20],  # Truncate long names
-            activity.activity_type[:15],
-            f"{int(activity.duration // 3600):02d}:{int((activity.duration % 3600) // 60):02d}",
-            f"{activity.distance / 1000:.2f}",
-            f"{activity.avg_speed * 3.6 if activity.avg_speed else 0:.1f}",
-            str(activity.calories or "-"),
-        ]
+    # Add data rows from DataFrame
+    for idx in range(len(df)):
+        row = []
+        for df_col, _ in export_columns_list:
+            value = df[df_col].iloc[idx]
+            # Handle NaN/None values
+            if pd.isna(value):
+                row.append("-")
+            # Truncate long text fields
+            elif df_col in ["activity_name", "activity_type"]:
+                row.append(str(value)[:20] if len(str(value)) > 20 else str(value))
+            else:
+                row.append(str(value))
         table_data.append(row)
 
     # Create table
